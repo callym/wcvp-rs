@@ -1,0 +1,14 @@
+[package]
+edition = "2024"
+name = "wcvp"
+version = "0.1.0"
+
+[dependencies]
+calamine = "0.32"
+csv = "1.4"
+reqwest = "0.13"
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "2"
+time = { version = "0.3", features = ["macros", "parsing", "serde-human-readable"] }
+tokio = { version = "1.49", features = ["full"] }
+zip = "7.2"

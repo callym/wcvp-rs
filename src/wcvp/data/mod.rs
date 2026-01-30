@@ -8,7 +8,7 @@ pub use hybrid_type::HybridType;
 pub use status::Status;
 pub use taxon_rank::TaxonRank;
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Data {
   /// World Checklist of Vascular Plants (WCVP) identifier
   #[serde(rename = "plant_name_id")]

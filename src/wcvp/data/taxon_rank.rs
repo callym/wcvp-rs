@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Copy, serde::Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum TaxonRank {
   Convariety,
   Form,

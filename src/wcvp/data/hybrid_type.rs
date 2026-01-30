@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Copy, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum HybridType {
   #[serde(rename = "+")]
   GraftChimera,

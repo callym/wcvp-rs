@@ -107,11 +107,11 @@ pub struct Data {
   /// The ID of the accepted name of this taxon. Where the taxon_status is "Accepted", this will be identical to the plant_name_id value.
   ///
   /// May be empty if taxon status is unplaced, ilegitimate, or in some cases where the accepted name is not a vascular plant (e.g. a moss, alga or animal).
-  pub accepted_plant_name_id: Option<String>,
+  pub accepted_plant_name_id: Option<u32>,
   /// ID of the original name that taxon_name was derived from. If there is a parenthetical author it is a basionym.
   ///
   /// If there is a replaced synonym author it is a replaced synonym. If empty there have been no name changes.
-  pub basionym_plant_name_id: Option<String>,
+  pub basionym_plant_name_id: Option<u32>,
   /// The author or authors responsible for publication of the replaced synonym.
   ///
   /// Empty when the name is not a replacement name based on another name.
@@ -123,7 +123,7 @@ pub struct Data {
   /// ID for the parent genus or parent species of an accepted species or infraspecific name.
   ///
   /// Empty for non accepted names or where the parent has not yet been calculated.
-  pub parent_plant_name_id: Option<String>,
+  pub parent_plant_name_id: Option<u32>,
   /// identifier required to look up the name directly in Plants of the World Online (Powo)
   pub powo_id: String,
   /// parents of hybrid

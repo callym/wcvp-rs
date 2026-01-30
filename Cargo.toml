@@ -1,6 +1,9 @@
 [package]
+description = "A rust crate to parse the World Checklist of Vascular Plants"
 edition = "2024"
+license = "MIT OR Apache-2.0"
 name = "wcvp"
+repository = "https://github.com/callym/wcvp-rs"
 version = "0.1.0"
 
 [dependencies]

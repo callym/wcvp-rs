@@ -4,7 +4,7 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 name = "wcvp"
 repository = "https://github.com/callym/wcvp-rs"
-version = "0.3.0"
+version = "0.4.0"
 
 [dependencies]
 calamine = "0.32"

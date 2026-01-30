@@ -2,7 +2,6 @@ use std::{
   collections::HashMap,
   io::{Cursor, Read},
   path::Path,
-  sync::nonpoison::RwLock,
 };
 
 use zip::ZipArchive;
@@ -17,25 +16,30 @@ pub use metadata::Metadata;
 pub use statistics::Statistics;
 pub use version::Version;
 
+type DataFields = (HashMap<u32, Data>, HashMap<String, u32>);
+
 #[derive(Debug)]
 pub struct Wcvp {
-  file: RwLock<ZipArchive<Cursor<Vec<u8>>>>,
-  metadata: Option<Metadata>,
+  metadata: Metadata,
   data: HashMap<u32, Data>,
   powo: HashMap<String, u32>,
-  statistics: Option<Statistics>,
+  statistics: Statistics,
 }
 
 impl Wcvp {
   pub async fn from_file(path: impl AsRef<Path>) -> Result<Self, crate::Error> {
     let file = tokio::fs::read(path).await?;
+    let mut file = ZipArchive::new(Cursor::new(file))?;
+
+    let metadata = Wcvp::load_metadata(&mut file)?;
+    let (data, powo) = Wcvp::load_data(&mut file)?;
+    let statistics = Statistics::calculate(data.values());
 
     Ok(Self {
-      file: RwLock::new(ZipArchive::new(Cursor::new(file))?),
-      metadata: None,
-      data: HashMap::new(),
-      powo: HashMap::new(),
-      statistics: None,
+      metadata,
+      data,
+      powo,
+      statistics,
     })
   }
 
@@ -44,58 +48,35 @@ impl Wcvp {
 
     let bytes = res.bytes().await?.to_vec();
 
+    let mut file = ZipArchive::new(Cursor::new(bytes))?;
+
+    let metadata = Wcvp::load_metadata(&mut file)?;
+    let (data, powo) = Wcvp::load_data(&mut file)?;
+    let statistics = Statistics::calculate(data.values());
+
     Ok(Self {
-      file: RwLock::new(ZipArchive::new(Cursor::new(bytes))?),
-      metadata: None,
-      data: HashMap::new(),
-      powo: HashMap::new(),
-      statistics: None,
+      metadata,
+      data,
+      powo,
+      statistics,
     })
   }
 
-  pub fn metadata(&mut self) -> Result<Metadata, crate::Error> {
-    if let Some(metadata) = self.metadata.clone() {
-      return Ok(metadata);
-    }
-
-    let mut file = self.file.write();
-    let mut readme = file.by_name("README_WCVP.xlsx")?;
-
-    let mut buf = Vec::new();
-    readme.read_to_end(&mut buf)?;
-
-    let readme = calamine::open_workbook_from_rs::<calamine::Xlsx<_>, _>(Cursor::new(buf))?;
-
-    let metadata = Metadata::try_from(readme)?;
-
-    self.metadata = Some(metadata.clone());
-
-    Ok(metadata)
+  pub fn len(&self) -> usize {
+    self.data.len()
   }
 
-  pub fn data(&mut self) -> Result<impl Iterator<Item = &Data>, crate::Error> {
-    if !self.data.is_empty() {
-      return Ok(self.data.values());
-    }
+  #[must_use]
+  pub fn is_empty(&self) -> bool {
+    self.data.is_empty()
+  }
 
-    let mut file = self.file.write();
-    let mut readme = file.by_name("wcvp_names.csv")?;
+  pub fn data(&self) -> impl Iterator<Item = &Data> {
+    self.data.values()
+  }
 
-    let mut buf = Vec::new();
-    readme.read_to_end(&mut buf)?;
-
-    let mut csv = csv::ReaderBuilder::new()
-      .delimiter(b'|')
-      .from_reader(Cursor::new(buf.clone()));
-
-    for result in csv.deserialize() {
-      let data: Data = result?;
-
-      self.powo.insert(data.powo_id.clone(), data.id);
-      self.data.insert(data.id, data);
-    }
-
-    Ok(self.data.values())
+  pub fn metadata(&self) -> &Metadata {
+    &self.metadata
   }
 
   pub fn from_id(&self, id: u32) -> Option<&Data> {
@@ -108,15 +89,41 @@ impl Wcvp {
     self.from_id(*id)
   }
 
-  pub fn statistics(&mut self) -> Result<Statistics, crate::Error> {
-    if let Some(stats) = self.statistics.clone() {
-      return Ok(stats);
+  pub fn statistics(&self) -> &Statistics {
+    &self.statistics
+  }
+
+  fn load_data(file: &mut ZipArchive<Cursor<Vec<u8>>>) -> Result<DataFields, crate::Error> {
+    let mut readme = file.by_name("wcvp_names.csv")?;
+
+    let mut buf = Vec::new();
+    readme.read_to_end(&mut buf)?;
+
+    let mut csv = csv::ReaderBuilder::new()
+      .delimiter(b'|')
+      .from_reader(Cursor::new(buf.clone()));
+
+    let mut powo_map = HashMap::new();
+    let mut data_map = HashMap::new();
+
+    for result in csv.deserialize() {
+      let data: Data = result?;
+
+      powo_map.insert(data.powo_id.clone(), data.id);
+      data_map.insert(data.id, data);
     }
 
-    let stats = Statistics::calculate(self.data()?);
+    Ok((data_map, powo_map))
+  }
 
-    self.statistics = Some(stats.clone());
+  fn load_metadata(file: &mut ZipArchive<Cursor<Vec<u8>>>) -> Result<Metadata, crate::Error> {
+    let mut readme = file.by_name("README_WCVP.xlsx")?;
 
-    Ok(stats)
+    let mut buf = Vec::new();
+    readme.read_to_end(&mut buf)?;
+
+    let readme = calamine::open_workbook_from_rs::<calamine::Xlsx<_>, _>(Cursor::new(buf))?;
+
+    Metadata::try_from(readme)
   }
 }

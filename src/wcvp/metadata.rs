@@ -9,6 +9,7 @@ use crate::Version;
 pub struct Metadata {
   pub version: Version,
   pub extracted: Date,
+  pub rows: u32,
 }
 
 impl TryFrom<calamine::Xlsx<Cursor<Vec<u8>>>> for Metadata {
@@ -19,6 +20,7 @@ impl TryFrom<calamine::Xlsx<Cursor<Vec<u8>>>> for Metadata {
 
     let mut version = None;
     let mut extracted = None;
+    let mut rows = None;
 
     while let Ok(Some(cell)) = sheet.next_cell() {
       let data = match cell.get_value() {
@@ -35,23 +37,51 @@ impl TryFrom<calamine::Xlsx<Cursor<Vec<u8>>>> for Metadata {
         extracted = Some(data.to_string());
       }
 
-      if version.is_some() && extracted.is_some() {
+      if data.starts_with("Table") {
+        rows = Some(data.to_string());
+      }
+
+      if version.is_some() && extracted.is_some() && rows.is_some() {
         break;
       }
     }
 
-    let mut version = version.unwrap();
-    let mut extracted = extracted.unwrap();
+    let version = match version {
+      Some(mut version) => {
+        version.remove_matches("Version ");
+        version.remove_matches("\"");
+        let version = version.parse::<u32>().unwrap();
+        Version::try_from(version)?
+      },
+      None => return Err(crate::Error::EmptyVersion),
+    };
 
-    version.remove_matches("Version ");
-    version.remove_matches("\"");
-    let version = version.parse::<u32>().unwrap();
-    let version = Version::try_from(version)?;
+    let extracted = match extracted {
+      Some(mut extracted) => {
+        extracted.remove_matches("Extracted: ");
+        let my_format = format_description!("[day]/[month]/[year]");
+        Date::parse(&extracted, &my_format)?
+      },
+      None => return Err(crate::Error::EmptyExtractedDate),
+    };
 
-    extracted.remove_matches("Extracted: ");
-    let my_format = format_description!("[day]/[month]/[year]");
-    let extracted = Date::parse(&extracted, &my_format)?;
+    let rows = match rows {
+      Some(rows) => match rows.split_once("rows and") {
+        Some((rows, _)) => {
+          let mut rows = rows.to_string();
+          rows.remove_matches("Table: ");
+          rows.remove_matches(",");
+          rows.trim().parse().unwrap()
+        },
+        None => return Err(crate::Error::InvalidRowCount(rows.clone()))?,
+      },
+      None => return Err(crate::Error::EmptyRowCount),
+    };
 
-    Ok(Metadata { version, extracted })
+    Ok(Metadata {
+      version,
+      extracted,
+      rows,
+    })
   }
 }

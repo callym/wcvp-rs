@@ -2,6 +2,14 @@
 pub enum Error {
   #[error("Invalid version: {0}")]
   InvalidVersion(u32),
+  #[error("Empty version")]
+  EmptyVersion,
+  #[error("Emppty extracted date")]
+  EmptyExtractedDate,
+  #[error("Invalid row count: {0}")]
+  InvalidRowCount(String),
+  #[error("Empty row count")]
+  EmptyRowCount,
 
   #[error(transparent)]
   Reqwest(#[from] reqwest::Error),

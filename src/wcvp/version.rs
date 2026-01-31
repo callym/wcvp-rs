@@ -13,3 +13,11 @@ impl TryFrom<u32> for Version {
     }
   }
 }
+
+impl From<Version> for u32 {
+  fn from(value: Version) -> Self {
+    match value {
+      Version::V15 => 15,
+    }
+  }
+}
